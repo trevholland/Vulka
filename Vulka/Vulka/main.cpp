@@ -522,8 +522,9 @@ private:
             }
 
             // TODO: Maybe update this logic to check for the "best" format.
-            return availableFormats[0];
         }
+        
+		return availableFormats[0];
     }
 
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes)
