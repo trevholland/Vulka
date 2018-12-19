@@ -120,6 +120,7 @@ private:
         createImageViews();
         createRenderPass();
         createGraphicsPipeline();
+        createFramebuffers();
     }
 
     void createInstance()
@@ -553,6 +554,32 @@ private:
         logger.debug("Graphics pipeline creation cleaned up.");
     }
 
+    void createFramebuffers()
+    {
+        mSwapchainFramebuffers.resize(mSwapchainImageViews.size());
+
+        for (size_t i = 0, count = mSwapchainImageViews.size(); i < count; i++) {
+            VkImageView attachments[] = {
+                mSwapchainImageViews[i]
+            };
+
+            VkFramebufferCreateInfo framebufferInfo = {};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = mRenderPass;
+            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.width = mSwapchainExtent.width;
+            framebufferInfo.height = mSwapchainExtent.height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create framebuffer!");
+            }
+        }
+
+        logger.debug("Framebuffers created.");
+    }
+
     void mainLoop()
     {
         while (!glfwWindowShouldClose(mWindow))
@@ -563,6 +590,10 @@ private:
 
     void cleanup()
     {
+        for (auto framebuffer : mSwapchainFramebuffers)
+        {
+            vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
+        }
         vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
         vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
         vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
@@ -855,12 +886,12 @@ private:
     VkSurfaceKHR mSurface;
     VkQueue mPresentationQueue;
 
-    // next 5 vars are swapchain stuff....maybe move to its own class?
     VkSwapchainKHR mSwapchain;
     std::vector<VkImage> mSwapchainImages;
     VkFormat mSwapchainImageFormat;
     VkExtent2D mSwapchainExtent;
     std::vector<VkImageView> mSwapchainImageViews;
+    std::vector<VkFramebuffer> mSwapchainFramebuffers;
 
     VkRenderPass mRenderPass;
     VkPipelineLayout mPipelineLayout;
