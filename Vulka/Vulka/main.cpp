@@ -118,6 +118,7 @@ private:
         createLogicalDevice();
         createSwapChain();
         createImageViews();
+        createRenderPass();
         createGraphicsPipeline();
     }
 
@@ -378,6 +379,41 @@ private:
         logger.debug("Image views created.");
     }
 
+    void createRenderPass()
+    {
+        VkAttachmentDescription colorAttachment = {};
+        colorAttachment.format = mSwapchainImageFormat;
+        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentReference colorAttachmentRef = {};
+        colorAttachmentRef.attachment = 0;
+        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorAttachmentRef;
+
+        VkRenderPassCreateInfo renderPassInfo = {};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+
+        if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create render pass!");
+        }
+
+        logger.debug("Render pass created.");
+    }
+
     void createGraphicsPipeline()
     {
         VkShaderModule vertShaderModule = createShaderModule(readFile("Shader/vert.spv"));
@@ -501,6 +537,7 @@ private:
     void cleanup()
     {
         vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+        vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
         for (auto imageView : mSwapchainImageViews)
         {
             vkDestroyImageView(mDevice, imageView, nullptr);
@@ -789,14 +826,16 @@ private:
     VkQueue mGraphicsQueue;
     VkSurfaceKHR mSurface;
     VkQueue mPresentationQueue;
+
     // next 5 vars are swapchain stuff....maybe move to its own class?
     VkSwapchainKHR mSwapchain;
     std::vector<VkImage> mSwapchainImages;
     VkFormat mSwapchainImageFormat;
     VkExtent2D mSwapchainExtent;
     std::vector<VkImageView> mSwapchainImageViews;
-    VkPipelineLayout mPipelineLayout;
 
+    VkRenderPass mRenderPass;
+    VkPipelineLayout mPipelineLayout;
 };
 
 int main()
