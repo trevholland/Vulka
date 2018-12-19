@@ -518,12 +518,39 @@ private:
             throw std::runtime_error("failed to create pipeline layout!");
         }
         logger.debug("Fixed function pipeline setup.");
+
+        VkGraphicsPipelineCreateInfo pipelineInfo = {};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+        pipelineInfo.pViewportState = &viewportStateInfo;
+        pipelineInfo.pRasterizationState = &rasterizerInfo;
+        pipelineInfo.pMultisampleState = &multisamplingInfo;
+        pipelineInfo.pDepthStencilState = nullptr; // optional
+        pipelineInfo.pColorBlendState = &colorBlendInfo;
+        pipelineInfo.pDynamicState = nullptr; // optional
+        pipelineInfo.layout = mPipelineLayout;
+        pipelineInfo.renderPass = mRenderPass;
+        pipelineInfo.subpass = 0;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // optional
+        pipelineInfo.basePipelineIndex = -1; // optional
+
+        if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create graphics pipeline!");
+        }
+
+        logger.debug("Graphics pipeline created!");
+
         // cleanup now that the pipeline is created.
         // ...the fact that this one function has a section for cleanup
         // heavily implies this should be in its own class.
         vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
         vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
 
+        logger.debug("Graphics pipeline creation cleaned up.");
     }
 
     void mainLoop()
@@ -536,6 +563,7 @@ private:
 
     void cleanup()
     {
+        vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
         vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
         vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
         for (auto imageView : mSwapchainImageViews)
@@ -836,6 +864,7 @@ private:
 
     VkRenderPass mRenderPass;
     VkPipelineLayout mPipelineLayout;
+    VkPipeline mGraphicsPipeline;
 };
 
 int main()
