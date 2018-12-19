@@ -38,6 +38,7 @@ public:
     Logger()
     {
         hstdout = GetStdHandle(STD_OUTPUT_HANDLE);
+        herr = GetStdHandle(STD_ERROR_HANDLE);
     }
 
     /*
@@ -146,8 +147,7 @@ public:
         va_list args;
         va_start(args, fmt);
         std::string logstr = format(fmt, args);
-        this->log_internal(logstr, LOG_COLOR_ERROR, true);
-        std::cerr << logstr.c_str() << std::endl;
+        this->error_internal(logstr, LOG_COLOR_ERROR);
         va_end(args);
     }
 
@@ -160,27 +160,40 @@ public:
         va_list args;
         va_start(args, fmt);
         std::string logstr = format(fmt, args);
-        this->log_internal(logstr, LOG_COLOR_CODE(LOG_COLOR_DARK_RED, LOG_COLOR_LIGHT_GRAY), false);
+        this->log_internal(logstr, LOG_COLOR_CODE(LOG_COLOR_DARK_RED, LOG_COLOR_LIGHT_GRAY));
         va_end(args);
         logn(LOG_COLOR_BLACK, LOG_COLOR_DARK_YELLOW, " ! ! !WARNING! ! ! ");
     }
 
 private:
     template <typename... Args>
-    void log_internal(const std::string& str, WORD clr, bool newline=false)
+    void log_internal(const std::string& text, WORD color, bool newline=false)
     {
         // cache the current screen buffer info
         GetConsoleScreenBufferInfo(hstdout, &csbi);
         // set the specified color
-        SetConsoleTextAttribute(hstdout, clr);
+        SetConsoleTextAttribute(hstdout, color);
         // out the text
-        std::cout << str.c_str();
+        std::cout << text.c_str();
         if (newline)
         {
             std::cout << std::endl;
         }
         // set the console data back
         SetConsoleTextAttribute(hstdout, csbi.wAttributes);
+        // TODO: Could be better to not set it back since we specify a color every time. Not sure...
+    }
+
+    template <typename... Args>
+    void error_internal(const std::string& text, WORD color)
+    {
+        // cache the current screen buffer info
+        GetConsoleScreenBufferInfo(herr, &csbi);
+        // set the specified color
+        SetConsoleTextAttribute(herr, color);
+        std::cerr << text.c_str() << std::endl;
+        // set the console data back
+        SetConsoleTextAttribute(herr, csbi.wAttributes);
         // TODO: Could be better to not set it back since we specify a color every time. Not sure...
     }
 
@@ -215,6 +228,7 @@ private:
     }
 
     HANDLE hstdout;
+    HANDLE herr;
     CONSOLE_SCREEN_BUFFER_INFO csbi;
 };
 

@@ -397,7 +397,91 @@ private:
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr; // optional
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr; // optional
 
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
+        inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+        VkViewport viewport = {};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float)mSwapchainExtent.width;
+        viewport.height = (float)mSwapchainExtent.height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        VkRect2D scissor = {};
+        scissor.offset = {0, 0};
+        scissor.extent = mSwapchainExtent;
+
+        VkPipelineViewportStateCreateInfo viewportStateInfo = {};
+        viewportStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportStateInfo.viewportCount = 1;
+        viewportStateInfo.pViewports = &viewport;
+        viewportStateInfo.scissorCount = 1;
+        viewportStateInfo.pScissors = &scissor;
+
+        VkPipelineRasterizationStateCreateInfo rasterizerInfo = {};
+        rasterizerInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizerInfo.depthClampEnable = VK_FALSE;
+        rasterizerInfo.rasterizerDiscardEnable = VK_FALSE;
+        rasterizerInfo.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizerInfo.lineWidth = 1.0f;
+        rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+        rasterizerInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizerInfo.depthBiasEnable = VK_FALSE;
+        rasterizerInfo.depthBiasConstantFactor = 0.0f; // optional
+        rasterizerInfo.depthBiasClamp = 0.0f; // optional
+        rasterizerInfo.depthBiasSlopeFactor = 0.0f; // optional
+
+        VkPipelineMultisampleStateCreateInfo multisamplingInfo = {};
+        multisamplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisamplingInfo.sampleShadingEnable = VK_FALSE;
+        multisamplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisamplingInfo.minSampleShading = 1.0f; // optional
+        multisamplingInfo.pSampleMask = nullptr; // optional
+        multisamplingInfo.alphaToCoverageEnable = VK_FALSE; // optional
+        multisamplingInfo.alphaToOneEnable = VK_FALSE; // optional
+
+        VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // optional
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // optional
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // optional
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // optional
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // optional
+
+        VkPipelineColorBlendStateCreateInfo colorBlendInfo = {};
+        colorBlendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendInfo.logicOpEnable = VK_FALSE;
+        colorBlendInfo.logicOp = VK_LOGIC_OP_COPY; // optional
+        colorBlendInfo.attachmentCount = 1;
+        colorBlendInfo.pAttachments = &colorBlendAttachment;
+        colorBlendInfo.blendConstants[0] = 0.0f; // optional
+        colorBlendInfo.blendConstants[1] = 0.0f; // optional
+        colorBlendInfo.blendConstants[2] = 0.0f; // optional
+        colorBlendInfo.blendConstants[3] = 0.0f; // optional
+
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 0; // Optional
+        pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+        if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+        logger.debug("Fixed function pipeline setup.");
         // cleanup now that the pipeline is created.
         // ...the fact that this one function has a section for cleanup
         // heavily implies this should be in its own class.
@@ -416,6 +500,7 @@ private:
 
     void cleanup()
     {
+        vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
         for (auto imageView : mSwapchainImageViews)
         {
             vkDestroyImageView(mDevice, imageView, nullptr);
@@ -503,7 +588,7 @@ private:
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
-        logger.error("validation layer: %s", pCallbackData->pMessage);
+        logger.error("[validation layer] %s", pCallbackData->pMessage);
         return VK_FALSE;
     }
 
@@ -560,8 +645,6 @@ private:
 
     int rateDeviceSuitability(VkPhysicalDevice device)
     {
-        int score = 0;
-        
         QueueFamilyIndices indices = findQueueFamilies(device);
         if (!indices.isComplete())
         {
@@ -572,9 +655,6 @@ private:
         {
             return 0;
         }
-
-
-        
 
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
         if (swapChainSupport.formats.empty() || swapChainSupport.presentModes.empty())
@@ -589,6 +669,8 @@ private:
             return 0;
         }
         
+        int score = 0;
+
         VkPhysicalDeviceProperties deviceProperties;
         vkGetPhysicalDeviceProperties(device, &deviceProperties);
         // discrete GPUs are best
@@ -713,9 +795,9 @@ private:
     VkFormat mSwapchainImageFormat;
     VkExtent2D mSwapchainExtent;
     std::vector<VkImageView> mSwapchainImageViews;
+    VkPipelineLayout mPipelineLayout;
 
 };
-
 
 int main()
 {
