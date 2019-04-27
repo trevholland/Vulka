@@ -29,7 +29,7 @@
 
 #define LOG_COLOR_DEFAULT   LOG_COLOR_LIGHT_GRAY
 #define LOG_COLOR_DEBUG     LOG_COLOR_DARK_CYAN
-#define LOG_COLOR_WARN      LOG_COLOR_CODE(LOG_COLOR_YELLOW, LOG_COLOR_GRAY)
+#define LOG_COLOR_WARN      LOG_COLOR_DARK_YELLOW
 #define LOG_COLOR_ERROR     LOG_COLOR_RED
 
 class Logger
@@ -146,8 +146,19 @@ public:
     {
         va_list args;
         va_start(args, fmt);
-        std::string logstr = format(fmt, args);
-        this->error_internal(logstr, LOG_COLOR_ERROR);
+        this->error_internal(format(fmt, args), LOG_COLOR_ERROR);
+        va_end(args);
+    }
+
+    /*
+    Log a Vulkan Validation Layer message.
+    Always append a new line at the end.
+    */
+    void validation(const char* fmt, ...)
+    {
+        va_list args;
+        va_start(args, fmt);
+        this->log_internal(format(fmt, args), LOG_COLOR_WARN, true);
         va_end(args);
     }
 
