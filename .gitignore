@@ -333,5 +333,5 @@ ASALocalRun/
 # Local History for Visual Studio
 .localhistory/
 
-# Libraries
+# Ignore Libraries (for now)
 Libraries/
