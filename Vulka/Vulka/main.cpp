@@ -1,7 +1,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -77,24 +79,56 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct Vertex
+{
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription()
+    {
+        VkVertexInputBindingDescription bindingDescription = {};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
+    {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, pos);
+        
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+        return attributeDescriptions;
+    }
+};
+
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
+
 class Game
 {
 public:
     void run()
     {
         logger.vulkawarn(" ... VULKA IS WARMING UP ... ");
-
         initWindow();
         initVulkan();
-
         logger.vulkawarn(" ... VULKA IS LOCKED AND LOADED ... ");
-
         mainLoop();
-
         logger.vulkawarn(" ... VULKA IS SHUTTING DOWN ... ");
-
         cleanup();
-
         logger.vulkawarn(" ... VULKA IS OFFLINE ... ");
     }
 
@@ -104,10 +138,11 @@ private:
         glfwInit();
         // by default, glfw wants to create an opengl context along with the window. this line tells it "no".
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        // not resizable....yet
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+
         // create the window.
         mWindow = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulka!", nullptr, nullptr);
+        glfwSetWindowUserPointer(mWindow, this);
+        glfwSetFramebufferSizeCallback(mWindow, framebufferResizeCallback);
         logger.debug("GLFW Window initialized.");
     }
 
@@ -124,6 +159,7 @@ private:
         createGraphicsPipeline();
         createFramebuffers();
         createCommandPool();
+        createVertexBuffer();
         createCommandBuffers();
         createSyncObjects();
     }
@@ -362,6 +398,30 @@ private:
         logger.debug("Swapchain created.");
     }
  
+    void recreateSwapChain()
+    {
+        logger.debug("Recreating swapchain.");
+
+        int width = 0, height = 0;
+        while (width == 0 || height == 0)
+        {
+            glfwGetFramebufferSize(mWindow, &width, &height);
+            glfwWaitEvents();
+        }
+        vkDeviceWaitIdle(mDevice);
+
+        cleanupSwapChain();
+
+        createSwapChain();
+        createImageViews();
+        createRenderPass();
+        createGraphicsPipeline();
+        createFramebuffers();
+        createCommandBuffers();
+
+        logger.debug("Swapchain recreated. Width: %d - Height: %d", width, height);
+    }
+
     void createImageViews()
     {
         size_t imageCount = mSwapchainImages.size();
@@ -456,12 +516,15 @@ private:
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr; // optional
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr; // optional
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
         inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -565,7 +628,7 @@ private:
             throw std::runtime_error("failed to create graphics pipeline!");
         }
 
-        logger.debug("Graphics pipeline created!");
+        logger.debug("Graphics pipeline created.");
 
         // cleanup now that the pipeline is created.
         // ...the fact that this one function has a section for cleanup
@@ -618,9 +681,46 @@ private:
         logger.debug("Command pool created.");
     }
 
+    void createVertexBuffer()
+    {
+        VkBufferCreateInfo bufferInfo = {};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mVertexBuffer) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create vertex buffer.");
+        }
+        
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(mDevice, mVertexBuffer, &memRequirements);
+
+        VkMemoryAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &mVertexBufferMemory) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to allocate vertex buffer memory.");
+        }
+
+        vkBindBufferMemory(mDevice, mVertexBuffer, mVertexBufferMemory, 0);
+
+        void* data;
+        vkMapMemory(mDevice, mVertexBufferMemory, 0, bufferInfo.size, 0, &data);
+        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+        vkUnmapMemory(mDevice, mVertexBufferMemory);
+
+        logger.debug("Vertex Buffer created.");
+    }
+
     void createCommandBuffers()
     {
         mCommandBuffers.resize(mSwapchainFramebuffers.size());
+
         VkCommandBufferAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         allocInfo.commandPool = mCommandPool;
@@ -659,7 +759,11 @@ private:
 
             vkCmdBindPipeline(mCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 
-            vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+            VkBuffer vertexBuffers[] = { mVertexBuffer };
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(mCommandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+            vkCmdDraw(mCommandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
             vkCmdEndRenderPass(mCommandBuffers[i]);
 
             if (vkEndCommandBuffer(mCommandBuffers[i]) != VK_SUCCESS)
@@ -698,7 +802,7 @@ private:
             }
         }
 
-        logger.debug("Semaphores created.");
+        logger.debug("Semaphores and Fences created.");
     }
 
     void mainLoop()
@@ -717,9 +821,20 @@ private:
     void drawFrame()
     {
         vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, (std::numeric_limits<uint64_t>::max)());
-        vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
+
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(mDevice, mSwapchain, (std::numeric_limits<uint64_t>::max)(), mImageAvailableSemaphore[mCurrentFrame], VK_NULL_HANDLE, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, (std::numeric_limits<uint64_t>::max)(), mImageAvailableSemaphore[mCurrentFrame], VK_NULL_HANDLE, &imageIndex);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR
+            || result == VK_SUBOPTIMAL_KHR)
+        {
+            recreateSwapChain();
+            return;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to acquire swapchain image.");
+        }
 
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -735,6 +850,8 @@ private:
         VkSemaphore signalSemaphores[] = {mRenderCompleteSemaphore[mCurrentFrame] };
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
+
+        vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
 
         if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
         {
@@ -752,14 +869,44 @@ private:
         presentInfo.pImageIndices = &imageIndex;
         presentInfo.pResults = nullptr; // optional
 
-        vkQueuePresentKHR(mPresentationQueue, &presentInfo);
-        vkQueueWaitIdle(mPresentationQueue);
+        result = vkQueuePresentKHR(mPresentationQueue, &presentInfo);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mFramebuffersResized)
+        {
+            mFramebuffersResized = false;
+            recreateSwapChain();
+        }
+        else if (result != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to present swap chain image.");
+        }
 
         mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
+    void cleanupSwapChain()
+    {
+        for (size_t i = 0, size = mSwapchainFramebuffers.size(); i < size; ++i)
+        {
+            vkDestroyFramebuffer(mDevice, mSwapchainFramebuffers[i], nullptr);
+        }
+        vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
+        vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+        vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+        vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
+        for (size_t i = 0, size = mSwapchainImageViews.size(); i < size; ++i)
+        {
+            vkDestroyImageView(mDevice, mSwapchainImageViews[i], nullptr);
+        }
+        vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
+    }
+
     void cleanup()
     {
+        cleanupSwapChain();
+
+        vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
+        vkFreeMemory(mDevice, mVertexBufferMemory, nullptr);
+
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
         {
             vkDestroySemaphore(mDevice, mImageAvailableSemaphore[i], nullptr);
@@ -767,18 +914,6 @@ private:
             vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
         }
         vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-        for (auto framebuffer : mSwapchainFramebuffers)
-        {
-            vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
-        }
-        vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
-        vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-        for (auto imageView : mSwapchainImageViews)
-        {
-            vkDestroyImageView(mDevice, imageView, nullptr);
-        }
-        vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
         vkDestroyDevice(mDevice, nullptr);
         if (enableValidationLayers)
         {
@@ -786,15 +921,16 @@ private:
         }
         vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         vkDestroyInstance(mInstance, nullptr);
+        
         glfwDestroyWindow(mWindow);
         glfwTerminate();
+        
         logger.debug("Cleanup complete.");
     }
 
  /*************************
  * HELPERS
  ***************************/
- 
     bool checkValidationSupport()
     {
         uint32_t layerCount;
@@ -910,7 +1046,13 @@ private:
             return capabilities.currentExtent;
         }
 
-        VkExtent2D actualExtent = { WINDOW_WIDTH, WINDOW_HEIGHT };
+        int width, height;
+        glfwGetFramebufferSize(mWindow, &width, &height);
+        VkExtent2D actualExtent = {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
+        logger.debug("Width: %d - Height: %d", width, height);
         actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         return actualExtent;
@@ -1050,10 +1192,32 @@ private:
         return shaderModule;
     }
 
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
+    {
+        Game* game = reinterpret_cast<Game*>(glfwGetWindowUserPointer(window));
+        game->mFramebuffersResized = true;
+    }
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
+
+        for (uint32_t i = 0, count = memProperties.memoryTypeCount; i < count; ++i)
+        {
+            if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                logger.debug("Found suitable memory type.");
+                return i;
+            }
+        }
+
+        throw std::runtime_error("failed to find suitable memory type.");
+    }
+
 /*************************
 * VARIABLES
 ***************************/
-
     GLFWwindow* mWindow;
     VkInstance mInstance;
     VkDebugUtilsMessengerEXT mCallback;
@@ -1080,6 +1244,11 @@ private:
     std::vector<VkSemaphore> mRenderCompleteSemaphore;
     std::vector<VkFence> mInFlightFences;
     size_t mCurrentFrame = 0;
+
+    bool mFramebuffersResized = false;
+
+    VkBuffer mVertexBuffer;
+    VkDeviceMemory mVertexBufferMemory;
 };
 
 int main()
