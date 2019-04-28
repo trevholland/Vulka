@@ -333,6 +333,5 @@ ASALocalRun/
 # Local History for Visual Studio
 .localhistory/
 
-# Custom Ignores
-Libraries/VulkanSDK/1.1.92.1/
-Libraries/VulkanSDK/1.1.106.0/
+# Libraries
+Libraries/
