@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "logger.h"
+#include "engine/logger.h"
 
 const int WINDOW_WIDTH = 1024;
 const int WINDOW_HEIGHT = 768;
@@ -824,13 +824,12 @@ private:
         uint32_t imageIndex;
         VkResult result = vkAcquireNextImageKHR(mDevice, mSwapchain, (std::numeric_limits<uint64_t>::max)(), mImageAvailableSemaphore[mCurrentFrame], VK_NULL_HANDLE, &imageIndex);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR
-            || result == VK_SUBOPTIMAL_KHR)
+        if (result == VK_ERROR_OUT_OF_DATE_KHR)
         {
             recreateSwapChain();
             return;
         }
-        else if (result != VK_SUCCESS)
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
         {
             logger.throw_error("failed to acquire swapchain image.");
         }
@@ -1212,6 +1211,7 @@ private:
         }
 
         logger.throw_error("failed to find suitable memory type.");
+        return 0;
     }
 
 /*************************

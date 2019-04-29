@@ -159,10 +159,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Source\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="logger.h" />
+    <ClInclude Include="Source\Engine\logger.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\shader.frag" />
