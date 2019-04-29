@@ -150,6 +150,14 @@ public:
         va_end(args);
     }
 
+    void throw_error(const char* fmt, ...)
+    {
+        va_list args;
+        va_start(args, fmt);
+        this->throw_error_internal(format(fmt, args), LOG_COLOR_ERROR);
+        va_end(args);
+    }
+
     /*
     Log a Vulkan Validation Layer message.
     Always append a new line at the end.
@@ -202,10 +210,26 @@ private:
         GetConsoleScreenBufferInfo(herr, &csbi);
         // set the specified color
         SetConsoleTextAttribute(herr, color);
-        std::cerr << text.c_str() << std::endl;
+        const char* textcstr = text.c_str();
+        std::cerr << textcstr << std::endl;
         // set the console data back
         SetConsoleTextAttribute(herr, csbi.wAttributes);
         // TODO: Could be better to not set it back since we specify a color every time. Not sure...
+    }
+
+    template <typename... Args>
+    void throw_error_internal(const std::string& text, WORD color)
+    {
+        // cache the current screen buffer info
+        GetConsoleScreenBufferInfo(herr, &csbi);
+        // set the specified color
+        SetConsoleTextAttribute(herr, color);
+        const char* textcstr = text.c_str();
+        std::cerr << textcstr << std::endl;
+        // set the console data back
+        SetConsoleTextAttribute(herr, csbi.wAttributes);
+        // TODO: Could be better to not set it back since we specify a color every time. Not sure...
+        throw std::runtime_error(textcstr);
     }
 
     std::string format(const char* fmt, va_list args)

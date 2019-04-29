@@ -112,9 +112,9 @@ struct Vertex
 };
 
 const std::vector<Vertex> vertices = {
-    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    { { 0.0f, -0.5f }, { 1.0f, 1.0f, 1.0f } },
+    { { 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f } },
+    { { -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } }
 };
 
 class Game
@@ -138,7 +138,6 @@ private:
         glfwInit();
         // by default, glfw wants to create an opengl context along with the window. this line tells it "no".
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
         // create the window.
         mWindow = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulka!", nullptr, nullptr);
         glfwSetWindowUserPointer(mWindow, this);
@@ -168,7 +167,7 @@ private:
     {
         if (enableValidationLayers && !checkValidationSupport())
         {
-            throw std::runtime_error("validation layers requested but not available!");
+            logger.throw_error("validation layers requested but not available!");
         }
         // this struct is optional but might give vulkan a little extra oomph
         VkApplicationInfo appInfo = {};
@@ -206,10 +205,10 @@ private:
             logger.debug("Vulkan instance created.");
             break;
         case VK_ERROR_INCOMPATIBLE_DRIVER:
-            logger.error("Vulkan drivers not found or graphics card is incompatible with Vulkan. Terminating");
+            logger.throw_error("Vulkan drivers not found or graphics card is incompatible with Vulkan. Terminating.");
             break;
         default:
-            logger.error("Failed to create Vulkan instance. Terminating.");
+            logger.throw_error("Failed to create Vulkan instance. Terminating.");
             break;
         }
     }
@@ -234,7 +233,7 @@ private:
 
         if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mCallback) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to set up debug callback!");
+            logger.throw_error("failed to set up debug callback!");
         }
 
         logger.debug("Validation Layer callbacks setup.");
@@ -244,7 +243,7 @@ private:
     {
         if (glfwCreateWindowSurface(mInstance, mWindow, nullptr, &mSurface) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create window surface!");
+            logger.throw_error("failed to create window surface!");
         }
 
         logger.debug("Window surface created.");
@@ -257,7 +256,7 @@ private:
 
         if (deviceCount == 0)
         {
-            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+            logger.throw_error("failed to find GPUs with Vulkan support!");
         }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -281,7 +280,7 @@ private:
         }
         if (mPhysicalDevice == VK_NULL_HANDLE)
         {
-            throw std::runtime_error("failed to find GPUs with Vulka support!");
+            logger.throw_error("failed to find GPUs with Vulka support!");
         }
         logger.debug("Physical device found.");
     }
@@ -328,7 +327,7 @@ private:
 
         if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to create logical device!");
+            logger.throw_error("Failed to create logical device!");
         }
 
         vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &mGraphicsQueue);
@@ -387,7 +386,7 @@ private:
 
         if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create swap chain!");
+            logger.throw_error("failed to create swap chain!");
         }
 
         // the swapchain was created with minImageCount set, but it could have used something larger, so we must query the count again.
@@ -445,7 +444,7 @@ private:
 
             if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapchainImageViews[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create an image view!");
+                logger.throw_error("failed to create an image view!");
             }
         }
 
@@ -491,7 +490,7 @@ private:
         renderPassInfo.pDependencies = &dependency;
 
         if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create render pass!");
+            logger.throw_error("failed to create render pass!");
         }
 
         logger.debug("Render pass created.");
@@ -601,7 +600,7 @@ private:
         pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
         if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
+            logger.throw_error("failed to create pipeline layout!");
         }
         logger.debug("Fixed function pipeline setup.");
 
@@ -625,7 +624,7 @@ private:
 
         if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create graphics pipeline!");
+            logger.throw_error("failed to create graphics pipeline!");
         }
 
         logger.debug("Graphics pipeline created.");
@@ -658,7 +657,7 @@ private:
             framebufferInfo.layers = 1;
 
             if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapchainFramebuffers[i]) != VK_SUCCESS) {
-                throw std::runtime_error("failed to create framebuffer!");
+                logger.throw_error("failed to create framebuffer!");
             }
         }
 
@@ -675,7 +674,7 @@ private:
 
         if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool))
         {
-            throw std::runtime_error("failed to create command pool!");
+            logger.throw_error("failed to create command pool!");
         }
 
         logger.debug("Command pool created.");
@@ -691,7 +690,7 @@ private:
 
         if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mVertexBuffer) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create vertex buffer.");
+            logger.throw_error("failed to create vertex buffer.");
         }
         
         VkMemoryRequirements memRequirements;
@@ -704,7 +703,7 @@ private:
 
         if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &mVertexBufferMemory) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to allocate vertex buffer memory.");
+            logger.throw_error("failed to allocate vertex buffer memory.");
         }
 
         vkBindBufferMemory(mDevice, mVertexBuffer, mVertexBufferMemory, 0);
@@ -729,7 +728,7 @@ private:
 
         if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to allocate command buffers.");
+            logger.throw_error("failed to allocate command buffers.");
         }
 
         for (size_t i = 0, count = mCommandBuffers.size(); i < count; ++i)
@@ -741,7 +740,7 @@ private:
 
             if (vkBeginCommandBuffer(mCommandBuffers[i], &beginInfo) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to begin recording a command buffer.");
+                logger.throw_error("failed to begin recording a command buffer.");
             }
 
             VkRenderPassBeginInfo renderPassInfo = {};
@@ -768,7 +767,7 @@ private:
 
             if (vkEndCommandBuffer(mCommandBuffers[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to record a command buffer.");
+                logger.throw_error("failed to record a command buffer.");
             }
         }
 
@@ -793,12 +792,12 @@ private:
             if (vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mImageAvailableSemaphore[i]) != VK_SUCCESS ||
                 vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderCompleteSemaphore[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create a semaphore.");
+                logger.throw_error("failed to create a semaphore.");
             }
 
             if (vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create a fence.");
+                logger.throw_error("failed to create a fence.");
             }
         }
 
@@ -833,7 +832,7 @@ private:
         }
         else if (result != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to acquire swapchain image.");
+            logger.throw_error("failed to acquire swapchain image.");
         }
 
         VkSubmitInfo submitInfo = {};
@@ -855,7 +854,7 @@ private:
 
         if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to submit draw command buffer!");
+            logger.throw_error("failed to submit draw command buffer!");
         }
 
         VkPresentInfoKHR presentInfo = {};
@@ -877,7 +876,7 @@ private:
         }
         else if (result != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to present swap chain image.");
+            logger.throw_error("failed to present swap chain image.");
         }
 
         mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -1166,7 +1165,7 @@ private:
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
         if (!file.is_open())
         {
-            throw std::runtime_error("Failed to open file.");
+            logger.throw_error("Failed to open file.");
         }
 
         size_t fileSize = (size_t)file.tellg();
@@ -1186,7 +1185,7 @@ private:
         VkShaderModule shaderModule;
         if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create shader module!");
+            logger.throw_error("failed to create shader module!");
         }
 
         return shaderModule;
@@ -1212,7 +1211,7 @@ private:
             }
         }
 
-        throw std::runtime_error("failed to find suitable memory type.");
+        logger.throw_error("failed to find suitable memory type.");
     }
 
 /*************************
