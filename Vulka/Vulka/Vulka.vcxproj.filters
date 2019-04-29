@@ -20,6 +20,9 @@
     <ClCompile Include="Source\main.cpp">
       <Filter>source</Filter>
     </ClCompile>
+    <ClCompile Include="source\engine\input.cpp">
+      <Filter>source\engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Shader\shader.vert">
@@ -31,6 +34,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Engine\logger.h">
+      <Filter>source\engine</Filter>
+    </ClInclude>
+    <ClInclude Include="source\engine\input.h">
       <Filter>source\engine</Filter>
     </ClInclude>
   </ItemGroup>

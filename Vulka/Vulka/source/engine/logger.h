@@ -1,4 +1,5 @@
-#pragma once
+#ifndef _LOGGER_H_
+#define _LOGGER_H_
 
 #include <iostream>
 #include <Windows.h>
@@ -179,7 +180,7 @@ public:
         va_list args;
         va_start(args, fmt);
         std::string logstr = format(fmt, args);
-        this->log_internal(logstr, LOG_COLOR_CODE(LOG_COLOR_DARK_RED, LOG_COLOR_LIGHT_GRAY));
+        this->log_internal(logstr, LOG_COLOR_CODE(LOG_COLOR_LIGHT_GRAY, LOG_COLOR_RED));
         va_end(args);
         logn(LOG_COLOR_BLACK, LOG_COLOR_DARK_YELLOW, " ! ! !WARNING! ! ! ");
     }
@@ -269,7 +270,9 @@ private:
 
 /* 
 * Anyone using this logger should access it from here.
-* It is purposelynot a singleton because it might make sense
+* It is purposely not a singleton because it might make sense
 * to instantiate more than one in the future.
 */
-Logger logger;
+static Logger logger;
+
+#endif _LOGGER_H_

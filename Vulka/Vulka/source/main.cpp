@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "engine/input.h"
 #include "engine/logger.h"
 
 const int WINDOW_WIDTH = 1024;
@@ -124,6 +125,7 @@ public:
     {
         logger.vulkawarn(" ... VULKA IS WARMING UP ... ");
         initWindow();
+        initInput();
         initVulkan();
         logger.vulkawarn(" ... VULKA IS LOCKED AND LOADED ... ");
         mainLoop();
@@ -139,10 +141,22 @@ private:
         // by default, glfw wants to create an opengl context along with the window. this line tells it "no".
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         // create the window.
-        mWindow = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulka!", nullptr, nullptr);
-        glfwSetWindowUserPointer(mWindow, this);
-        glfwSetFramebufferSizeCallback(mWindow, framebufferResizeCallback);
+        pWindow = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulka!", nullptr, nullptr);
+        glfwSetWindowUserPointer(pWindow, this);
+        glfwSetFramebufferSizeCallback(pWindow, framebufferResizeCallback);
         logger.debug("GLFW Window initialized.");
+    }
+
+    void initInput()
+    {
+        InputInfo inputInfo = {};
+        inputInfo.pWindow = pWindow;
+        inputInfo.closeKeys.push_back(GLFW_KEY_LEFT_SHIFT);
+        inputInfo.closeKeys.push_back(GLFW_KEY_RIGHT_SHIFT);
+        mInput.Initialize(&inputInfo);
+
+        mInput.AddKeybinding('JUMP', GLFW_KEY_SPACE);
+        mInput.AddKeybinding('EXIT', GLFW_KEY_ESCAPE);
     }
 
     void initVulkan()
@@ -241,7 +255,7 @@ private:
 
     void createSurface()
     {
-        if (glfwCreateWindowSurface(mInstance, mWindow, nullptr, &mSurface) != VK_SUCCESS)
+        if (glfwCreateWindowSurface(mInstance, pWindow, nullptr, &mSurface) != VK_SUCCESS)
         {
             logger.throw_error("failed to create window surface!");
         }
@@ -404,7 +418,7 @@ private:
         int width = 0, height = 0;
         while (width == 0 || height == 0)
         {
-            glfwGetFramebufferSize(mWindow, &width, &height);
+            glfwGetFramebufferSize(pWindow, &width, &height);
             glfwWaitEvents();
         }
         vkDeviceWaitIdle(mDevice);
@@ -806,9 +820,11 @@ private:
 
     void mainLoop()
     {
-        while (!glfwWindowShouldClose(mWindow))
+        while (!glfwWindowShouldClose(pWindow) && !mInput.IsActionPressed('EXIT'))
         {
             glfwPollEvents();
+            // update input after glfwPollEvents so we have fresh input data.
+            mInput.Update();
             drawFrame();
         }
 
@@ -900,6 +916,8 @@ private:
 
     void cleanup()
     {
+        mInput.Shutdown();
+
         cleanupSwapChain();
 
         vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
@@ -920,7 +938,7 @@ private:
         vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
         vkDestroyInstance(mInstance, nullptr);
         
-        glfwDestroyWindow(mWindow);
+        glfwDestroyWindow(pWindow);
         glfwTerminate();
         
         logger.debug("Cleanup complete.");
@@ -1045,7 +1063,7 @@ private:
         }
 
         int width, height;
-        glfwGetFramebufferSize(mWindow, &width, &height);
+        glfwGetFramebufferSize(pWindow, &width, &height);
         VkExtent2D actualExtent = {
             static_cast<uint32_t>(width),
             static_cast<uint32_t>(height)
@@ -1217,7 +1235,9 @@ private:
 /*************************
 * VARIABLES
 ***************************/
-    GLFWwindow* mWindow;
+    Input mInput;
+
+    GLFWwindow* pWindow;
     VkInstance mInstance;
     VkDebugUtilsMessengerEXT mCallback;
     VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
@@ -1263,6 +1283,11 @@ int main()
         logger.error(e.what());
         exitCode = EXIT_FAILURE;
     }
+
+    // pause in debug builds so we can check the output
+    #ifndef NDEBUG
     system("PAUSE");
+    #endif
+
     return exitCode;
 }
